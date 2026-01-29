@@ -1,0 +1,39 @@
+# Infra Notes — Behaviour_portal
+
+## What to deploy
+- Behaviour_portal (stripped ELF binary)
+- flag.txt (real flag, one line)
+- Dockerfile + docker-compose.yml
+
+IMPORTANT:
+- Do NOT ship flag.txt to players.
+- The binary reads the real flag at runtime from ./flag.txt inside the container.
+
+## Build & Run
+From the challenge directory:
+
+### Using Docker Compose
+docker compose build
+docker compose up -d
+
+### Test
+nc localhost 1337
+
+## Session time limit (5 minutes)
+The container should enforce per-connection timeouts:
+- Use: timeout 300 ./Behaviour_portal
+- socat must exec the binary through timeout.
+
+## Recommended hardening
+- Run as non-root user (ctf)
+- read-only filesystem
+- drop all capabilities
+- no-new-privileges
+- tmpfs for /tmp and /run
+- resource limits (pids/mem/cpu)
+
+## Scale guidance
+- One port supports many concurrent clients.
+- socat uses fork → one process per connection.
+- Ensure pids_limit is high enough (>= expected concurrent players, e.g. 256).
+- Ensure host ulimit for open files is sane (infra side).

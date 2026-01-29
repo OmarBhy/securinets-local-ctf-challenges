@@ -1,0 +1,397 @@
+# Lab Experiment 2 - Write-up
+
+**Challenge:** Lab Experiment 2  
+**Category:** Reverse Engineering  
+**Difficulty:** Medium--anti debug 
+**Points:** 300--450  
+**Author:** Sh4dowRo0t (Omar Bel Haj Youssef)  
+**Flag:** `Securinets_fst{Akr1ch_m4_Yo7s0lch}`
+`
+---
+
+## Reconnaissance
+
+Running the binary:
+
+```bash
+$ ./lab_experiment2
+
+===============================================================
+    SECURINETS FST - LAB R&D  ACCESS SYSTEM
+    Multiverse Research Division - Security Level ALPHA-7
+===============================================================
+
+[*] Initializing ...
+[*] Quantum state: PURE (No observation)
+[*] Entering dimensional path ALPHA...
+
+[*] Accessing ...
+[*] Generating authentic access key: 0xDB
+
+===============================================================
+    DIMENSION ALPHA - AUTHENTIC RESEARCH DATA
+===============================================================
+
+[+] Access granted to the research vault
+[+] Decrypting authentic credentials...
+[+] Quantum observer effect: STABILIZED
+
+Credentials: Securinets_fst{Akr1ch_m4_Yo7s0lch}
+
+[+] Dimensional integrity: VERIFIED
+[+] You have accessed .....
+```
+
+We got the flag directly. But when we run it in a debugger:
+
+```bash
+$ gdb ./lab_experiment2
+pwndbg> r
+
+===============================================================
+    SECURINETS FST - LAB R&D  ACCESS SYSTEM
+    Multiverse Research Division - Security Level ALPHA-7
+===============================================================
+
+[*] Initializing ...
+[*] Quantum state: COLLAPSED (Observer detected)
+[*] Entering dimensional path BETA...
+
+[*] Accessing ...
+[*] Generating parallel access key: 0x47
+
+===============================================================
+    DIMENSION BETA - HONEYPOT RESEARCH DATA
+===============================================================
+
+[+] Access granted to parallel reasearch vault
+[+] Decrypting credentials...
+[!] Quantum observer effect: DETECTED
+
+Credentials: Securinets_fst{Hek_7solt_m3an4}
+
+[!] WARNING: Anomaly detected!
+[!] This is a PARALLEL reasearch with altered data
+```
+
+We get a fake flag. The program detects debuggers and changes its behavior.
+
+---
+
+## Solution 1: The Backdoor (Easy)
+
+### Finding the Backdoor in Ghidra
+
+Open the binary in Ghidra and let it analyze.
+
+#### Step 1: Find main()
+
+Look in the Functions window for the main function. It's the one that:
+- Takes 2 parameters (argc, argv)
+- Calls other functions
+- Has `return 0` at the end
+
+#### Step 2: Analyze main()
+
+```c
+undefined8 main(int param_1, long param_2)
+{
+    // ... initialization ...
+    
+    if (1 < param_1) {
+        uVar1 = strtoul(*(param_2 + 8), 0, 0x10);
+        //                                 ^^^^
+        //                             base 16 = HEX
+        
+        iVar2 = check_override_code(uVar1);
+        
+        if (iVar2 != 0) {
+            puts("[*] EMERGENCY OVERRIDE CODE ACCEPTED");
+            // ... bypass everything and show real flag ...
+        }
+    }
+}
+```
+
+What we learned:
+- The program accepts a command-line argument
+- The argument is converted to hexadecimal
+- It's checked by `check_override_code`
+
+#### Step 3: Check the override function
+
+```c
+bool check_override_code(int param_1)
+{
+    return param_1 == DAT_00404068;
+}
+```
+
+#### Step 4: Find the Value
+
+Double-click on `DAT_00404068` in Ghidra.
+
+It shows:
+```
+Address: 00404068
+Value:   ef be ad de    (little endian bytes)
+```
+
+In little endian, `ef be ad de` = **0xDEADBEEF**
+
+#### Step 5: Use the Backdoor
+
+```bash
+$ ./lab_experiment2 DEADBEEF
+
+===============================================================
+    SECURINETS FST - LAB R&D  ACCESS SYSTEM
+    Multiverse Research Division - Security Level ALPHA-7
+===============================================================
+
+[*] EMERGENCY OVERRIDE CODE ACCEPTED
+[*] Bypassing all quantum observations...
+[*] Trust level: MAXIMUM
+
+[*] Accessing ...
+[*] Generating authentic access key: 0xDB
+
+===============================================================
+    DIMENSION ALPHA - AUTHENTIC RESEARCH DATA
+===============================================================
+
+[+] Access granted to the research vault
+[+] Decrypting authentic credentials...
+[+] Quantum observer effect: STABILIZED
+
+Credentials: Securinets_fst{Akr1ch_m4_Yo7s0lch}
+
+[+] Dimensional integrity: VERIFIED
+[+] You have accessed .....
+```
+
+Flag captured.
+
+---
+
+### Why 0xDEADBEEF is Easy to Find
+
+`0xDEADBEEF` is a famous constant in programming:
+- Used as a magic number
+- Easy to spot in hex dumps
+- Well-known among CTF players
+
+Common constants to try:
+- `0xDEADBEEF`
+- `0xCAFEBABE`
+- `0xBADC0DE`
+- `0xFEEDFACE`
+
+---
+
+## Solution 2: Static Reverse Engineering (Hard)
+
+If you want to solve it without the backdoor, you need to reverse engineer the key generation algorithm.
+
+### Overview
+
+The program:
+1. Generates a key dynamically using `generate_alpha_key()`
+2. XORs the key with encrypted data
+3. Displays the result
+
+### Extract Constants from Ghidra
+
+```
+SEED_A = 0xDEADBEEF
+SEED_B = 0xCAFEBABE
+MATRIX = 16-byte array
+```
+
+### Extract Encrypted Data
+
+Find the decrypt function that shows "DIMENSION ALPHA".
+
+You'll see an array:
+```c
+uint8_t encrypted[] = {
+    0x9a, 0xb0, 0xa9, 0xea, 0xb8, 0xb3, 0x84, 0xb6, 0xef, 0x84,
+    0x82, 0xb4, 0xec, 0xa8, 0xeb, 0xb7, 0xb8, 0xb3
+};
+```
+
+### Python Solver
+
+```python
+#!/usr/bin/env python3
+"""
+Lab Experiment 2 - Solver
+"""
+
+def rotate_left(x, n):
+    n = n % 8
+    return ((x << n) | (x >> (8 - n))) & 0xFF
+
+def rotate_right(x, n):
+    n = n % 8
+    return ((x >> n) | (x << (8 - n))) & 0xFF
+
+def reverse_bits(x):
+    r = 0
+    for _ in range(8):
+        r = (r << 1) | (x & 1)
+        x >>= 1
+    return r & 0xFF
+
+def init_matrix(seed):
+    matrix = []
+    s = seed
+    for i in range(16):
+        s = (s * 0x41C64E6D + 0x3039) & 0xFFFFFFFF
+        matrix.append((s >> 16) & 0xFF)
+    return matrix
+
+def generate_alpha_key(seed_a, matrix):
+    key = 0
+    
+    key ^= (seed_a >> 24) & 0xFF
+    key ^= (seed_a >> 16) & 0xFF
+    key ^= (seed_a >> 8) & 0xFF
+    key ^= seed_a & 0xFF
+    
+    for i in range(4):
+        key = rotate_left(key, 3)
+        key ^= matrix[i * 3]
+        key = reverse_bits(key)
+        key ^= 0xA5
+    
+    key = rotate_right(key, 2)
+    key ^= matrix[7]
+    key ^= 0x5A
+    
+    return key & 0xFF
+
+SEED_A = 0xDEADBEEF
+encrypted = [
+    0x9a, 0xb0, 0xa9, 0xea, 0xb8, 0xb3, 0x84, 0xb6, 0xef, 0x84,
+    0x82, 0xb4, 0xec, 0xa8, 0xeb, 0xb7, 0xb8, 0xb3
+]
+
+matrix = init_matrix(SEED_A)
+key = generate_alpha_key(SEED_A, matrix)
+
+flag = ''.join(chr(b ^ key) for b in encrypted)
+print(f"Securinets_fst{{{flag}}}")
+```
+
+Output:
+```
+Securinets_fst{Akr1ch_m4_Yo7s0lch}
+```
+
+---
+
+## Solution 3: LD_PRELOAD Bypass (Medium)
+
+The program uses `ptrace()` to detect debuggers. We can bypass this by creating a fake `ptrace` function.
+
+### Step 1: Create fake_ptrace.c
+
+```c
+long ptrace(int request, ...) {
+    return 0;
+}
+```
+
+### Step 2: Compile
+
+```bash
+gcc -shared -fPIC -o fake_ptrace.so fake_ptrace.c
+```
+
+### Step 3: Run with LD_PRELOAD
+
+```bash
+LD_PRELOAD=./fake_ptrace.so ./lab_experiment2
+```
+
+The program thinks it's not being debugged and shows the real flag.
+
+---
+
+## Solution 4: Binary Patching
+
+Patch the anti-debug checks to always return "no debugger detected".
+
+### With Ghidra
+
+1. Find `check_ptrace` function
+2. Right-click on first instruction
+3. Patch Instruction -> Change to `xor eax, eax; ret`
+4. Do the same for `check_parent_process`
+5. Export the patched binary
+6. Run it
+
+---
+
+## Visual Guide: Finding the Backdoor
+
+```
+Step 1: Open Ghidra -> lab_experiment2
+   |
+   v
+Step 2: Find main function
+   |
+   v
+Step 3: See "if (1 < param_1)" -> argument check
+   |
+   v
+Step 4: See "strtoul(..., 16)" -> hex conversion
+   |
+   v
+Step 5: Follow to check_override_code
+   |
+   v
+Step 6: See "param_1 == DAT_00404068"
+   |
+   v
+Step 7: Double-click DAT_00404068
+   |
+   v
+Step 8: See value: 0xDEADBEEF
+   |
+   v
+Step 9: Try: ./lab_experiment2 DEADBEEF
+   |
+   v
+Step 10: FLAG!
+```
+
+---
+
+## Summary of Methods
+
+| Method | Difficulty | Time | Tools |
+|--------|------------|------|-------|
+| Backdoor | Easy | 5-10 min | Ghidra only |
+| Static Analysis | Hard | 1-2 hours | Ghidra + Python |
+| LD_PRELOAD | Medium | 15 min | GCC |
+| Binary Patching | Medium | 20 min | Ghidra |
+
+---
+
+## Flag
+
+```
+Securinets_fst{Akr1ch_m4_Yo7s0lch}
+```
+
+---
+
+## Key Takeaways
+
+1. Always check for command-line arguments - Many challenges have backdoors
+2. Common constants - Try DEADBEEF, CAFEBABE, etc.
+3. Static analysis first - Understand the code before debugging
+4. Multiple paths - Easy backdoor OR hard reverse engineering
+5. LD_PRELOAD - Simple way to bypass anti-debug

@@ -1,0 +1,8 @@
+Category: Reverse Engineering
+Difficulty: Easy
+
+Description:
+Securinets FST has opened a limited exchange program with a parallel chapter.
+To approve candidates, the other side provided a verification terminal.
+
+Recover the correct verification phrase and obtain the flag.

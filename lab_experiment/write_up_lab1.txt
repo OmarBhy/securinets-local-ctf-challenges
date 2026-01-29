@@ -1,0 +1,85 @@
+author :: omar bel haj youssef
+easy challenge
+ 
+
+#Clean GDB writeup (player-facing solution style)
+
+## Goal
+Recover the secret formula by extracting:
+- the runtime key (`lab_key` / return of `compute_lab_key`)
+- the ciphertext buffer produced by `build_cipher`
+then XOR to get the plaintext.
+
+## Steps in GDB / pwndbg
+
+### Step 1 — Get the key
+```gdb
+gdb -q ./lab_exp
+b compute_lab_key
+run
+finish
+p/x $al
+```
+
+- `$al` is the 8-bit return value of the function.
+- You should see `0xe1`.
+
+you can also see the key from ghidra directly ::
+
+undefined1 compute_lab_key(undefined4 param_1,undefined4 param_2)
+
+{
+  undefined1 uVar1;
+  
+  uVar1 = research_phase_1(param_1);
+  uVar1 = research_phase_2(uVar1);
+  final_synthesis(uVar1,param_2);
+  return 0xe1;  // here is the key !!!! 
+}
+
+
+
+### Step 2 — Dump the ciphertext buffer
+Break in `build_cipher`:
+
+```gdb
+b build_cipher
+c
+```
+
+At entry:
+- `$rdi` points to the output buffer
+- `$rsi` is the length (should be 31)
+
+Save the pointer:
+```gdb
+set $cipher = $rdi
+```
+
+Let the function finish so it fills the buffer:
+```gdb
+finish
+```
+
+Dump the bytes:
+```gdb
+x/31bx $cipher
+```
+pwndbg> x/31bx $cipher
+0x405b30:	0xb2	0x84	0x82	0x94	0x93	0x88	0x8f	0x84
+0x405b38:	0x84	0x95	0x92	0xbe	0x92	0x95	0x9a	0x80
+0x405b40:	0x92	0x92	0xd0	0x92	0x80	0x80	0x8f	0x95
+0x405b48:	0xbe	0x95	0x89	0x88	0xd8	0x80	0x9c
+
+
+This prints the correct formula, which is the flag:
+`Securinets_fst{ass1stant_thi9a}`
+
+### Step 4 — Run normally and enter it
+Exit GDB and run:
+```bash
+./lab_exp
+```
+Enter the recovered formula.
+
+---

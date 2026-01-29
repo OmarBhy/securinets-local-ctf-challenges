@@ -1,0 +1,40 @@
+# Solution — exchange_prog (Reverse / Easy)
+
+## Overview
+The binary asks for a “verification phrase” and checks it against an internal byte array (`blob`).  
+The check is done byte-by-byte using a single-byte operation with a value obtained from a runtime-initialized table.
+
+## Step 1: Find the encrypted data
+In Ghidra/IDA, locate the global array `blob` (33 bytes).  
+This is the target sequence used in the comparison loop.
+
+## Step 2: Identify how the comparison is done
+In `main`, you will find logic equivalent to:
+
+- read input
+- verify length equals `sizeof(blob)`
+- for each i:
+  - `(input[i] ^ token) == blob[i]`
+
+So the correct input is:
+
+`input[i] = blob[i] ^ token`
+
+## Step 3: Recover the token
+The token is returned by a function similar to:
+
+- `setup_registry()` fills `registry[256]` in a loop:
+  - `registry[i] = (i + 0x42) - i`
+  - This simplifies to `0x42` for every entry.
+
+Then `fetch_token(argc)` returns `registry[argc & 0xff]`.  
+When run normally, `argc = 1` (still returns 0x42).
+
+Therefore:  
+**token = 0x42**
+
+## Step 4: Decode the phrase / flag
+XOR every byte of `blob` with `0x42`.  
+This reveals the expected phrase, which is also the flag:
+
+`Securinets_fst{rbe7t_m3ana_re7la}`

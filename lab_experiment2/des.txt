@@ -1,0 +1,5 @@
+Description
+
+After the LabExperiment breach, the R&D lead implemented a quantum-based security system for the Lab R&D Access System. The vault creates two execution paths based on whether you're debugging it or not.
+
+Files: lab_experiment2

@@ -1,0 +1,41 @@
+# Mirror Universe
+
+**Category:** Reverse Engineering  
+**Difficulty:** Medium-Hard  
+**Points:** 400
+
+---
+
+## Description
+
+A breach from a parallel dimension has locked the SecuriNets FST system. 
+To restore access, you must find a recovery key that satisfies two 
+"dimensional laws" - mysterious transformations that protect the system.
+
+The first law deals with reflection and shifting letters through the mirror. 
+The second law manipulates reality at the bit level, with behavior that 
+changes based on position.
+
+⚠️ **Warning:** The keys are derived at runtime - static analysis alone won't 
+reveal everything. You'll need to observe the system's execution.
+
+---
+
+## Details
+
+- **Flag format:** `Securinets_fst{...}`
+- **Binary:** ELF 64-bit, stripped, no PIE
+- **Recommended tools:** Ghidra + GDB/Pwndbg
+
+---
+
+## Hints
+
+- Two parts, two different transformations
+- Keys are calculated dynamically
+- Some classic cryptographic operations are involved
+- The system tells you which part is wrong - use that feedback!
+
+---
+
+**Files:** `mirror_universe`
