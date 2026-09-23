@@ -4,3 +4,5 @@
 __pycache__/
 *.pyc
 core
+.gdb_history
+*/.gdb_history

@@ -65,7 +65,7 @@ static void print_flag(void) {
     printf("\n");
     printf("+============================================================+\n");
     printf("|                                                            |\n");
-    printf("|           *** PORTAL GATEWAY ACTIVATED! ***                |\n");
+    printf("|           ***portal gateway! ***                |\n");
     printf("|                                                            |\n");
     printf("+============================================================+\n");
     printf("|                                                            |\n");

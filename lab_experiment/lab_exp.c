@@ -1,4 +1,4 @@
-// lab_exp.c
+// lab_exp.c — FINAL FIXED VERSION
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -50,8 +50,7 @@ unsigned char final_synthesis(unsigned char input, int factor) {
 }
 
 /*
- * Key computed through phases, then normalized to 0xE1.
- * Intended for dynamic analysis: break here and inspect AL/RAX after return.
+ * Final key forced to 0xE1
  */
 __attribute__((noinline, optimize("O0")))
 unsigned char compute_lab_key(int s1, int s2) {
@@ -72,29 +71,28 @@ void secure_bzero(volatile void *p, size_t n) {
 }
 
 /*
- * Ciphertext for:
- *   "Securinets_fst{ass1stant_thi9a}" XOR 0xE1
- * but not stored as a plain byte array; reconstructed from words.
+ * Cipher = "Securinets_fst{ass1stant_thi9a}" XOR 0xE1
+ * Byte-exact, LITTLE-ENDIAN SAFE
  */
 __attribute__((noinline, optimize("O0")))
 void build_cipher(unsigned char *out, size_t n) {
+
     static const uint32_t A[] = {
-        0x948284b2, 0x848f8893, 0xbe929584, 0x809a9592,
-        0x92d09292, 0x958f8080, 0x888995be, 0x009c80d8
-    };
-    static const uint32_t B[] = {
-        0x00000000, 0x00000000, 0x00000000, 0x00000000,
-        0x00000000, 0x00000000, 0x00000000, 0x00000000
+        0x948284b2, // b2 84 82 94
+        0x848f8893, // 93 88 8f 84
+        0x87be9295, // 95 92 be 87   FIXED
+        0x809a9592, // 92 95 9a 80
+        0x92d09292, // 92 92 d0 92
+        0x958f8095, // 95 80 8f 95   FIXED
+        0x888995be, // be 95 89 88
+        0x009c80d8  // d8 80 9c 00
     };
 
     size_t idx = 0;
     for (size_t w = 0; idx < n; w++) {
         uint32_t wa = A[w];
-        uint32_t wb = B[w];
         for (int k = 0; k < 4 && idx < n; k++, idx++) {
-            unsigned char ba = (unsigned char)((wa >> (8 * k)) & 0xFF);
-            unsigned char bb = (unsigned char)((wb >> (8 * k)) & 0xFF);
-            out[idx] = (unsigned char)(ba ^ bb);
+            out[idx] = (unsigned char)((wa >> (8 * k)) & 0xFF);
         }
     }
 }
@@ -106,36 +104,30 @@ int main(int argc, char *argv[]) {
     int correct = 1;
 
     init_experiment();
-
     print_banner();
+
     printf("[*] Initializing experiment...\n");
     printf("[*] Loading research parameters...\n");
 
-    int seed1 = argc;       // normally 1
-    int seed2 = argc + 1;   // normally 2
+    int seed1 = argc;       // 1
+    int seed2 = argc + 1;   // 2
 
     lab_key = compute_lab_key(seed1, seed2);
 
     printf("Experiment ready!\n\n");
     printf("Enter the secret formula: ");
 
-    if (fgets(input, sizeof(input), stdin) == NULL) {
-        return 1;
-    }
+    if (!fgets(input, sizeof(input), stdin)) return 1;
 
     size_t len = strlen(input);
-    if (len > 0 && input[len - 1] == '\n') {
-        input[len - 1] = '\0';
-        len--;
+    if (len && input[len - 1] == '\n') {
+        input[--len] = '\0';
     }
 
     const size_t N = 31;
+    if (len != N) correct = 0;
 
-    if (len != N) {
-        correct = 0;
-    }
-
-    unsigned char *cipher = (unsigned char *)malloc(N);
+    unsigned char *cipher = malloc(N);
     if (!cipher) return 1;
 
     build_cipher(cipher, N);
@@ -151,12 +143,13 @@ int main(int argc, char *argv[]) {
     secure_bzero(input, sizeof(input));
 
     if (correct) {
-        printf("\n sa7a lik hek tala3tha ! \n");
+        printf("\nsa7a lik hek tala3tha!\n");
         printf("You have unlocked the research database!\n");
     } else {
-        printf("\nBara El3ab B3id !\n");
-        printf(" The formula is incorrect\n");
+        printf("\nBara El3ab B3id!\n");
+        printf("The formula is incorrect\n");
     }
 
     return 0;
 }
+
